@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' show parse;
+import 'package:htmltopdfwidgets/htmltopdfwidgets.dart';
 import 'package:htmltopdfwidgets/src/attributes.dart';
 import 'package:htmltopdfwidgets/src/extension/int_extensions.dart';
 import 'package:htmltopdfwidgets/src/utils/app_assets.dart';
@@ -14,7 +15,6 @@ import 'html_tags.dart';
 import 'pdfwidgets/bullet_list.dart';
 import 'pdfwidgets/number_list.dart';
 import 'pdfwidgets/quote_widget.dart';
-import 'dart:convert';
 
 ////html deocoder that deocde html and convert it into pdf widgets
 class WidgetsHTMLDecoder {
@@ -76,55 +76,12 @@ class WidgetsHTMLDecoder {
           final attributes = _parserFormattingElementAttributes(domNode);
 
           textAlign = attributes.$1;
-          delta.add(TextSpan(
-              text: "${domNode.text.replaceAll(RegExp(r'\n+$'), '')} ",
-              style: attributes.$2));
-        } else if (HTMLTags.specialElements.contains(localName)) {
-          if (delta.isNotEmpty) {
-            final newlist = List<TextSpan>.from(delta);
-            result.add((SizedBox(
-                width: double.infinity,
-                child: RichText(
-                    textAlign: textAlign, text: TextSpan(children: newlist)))));
 
-            textAlign = null;
-
-            delta.clear();
-          }
-          if (checkbox) {
-            checkbox = false;
-
-            result.add(Row(children: [
-              SvgImage(
-                  svg: alreadyChecked
-                      ? AppAssets.checkedIcon
-                      : AppAssets.unCheckedIcon),
-              ...await _parseSpecialElements(
-                domNode,
-                type: BuiltInAttributeKey.bulletedList,
-              ),
-            ]));
-            alreadyChecked = false;
-          } else {
-            if (localName == HTMLTags.checkbox) {
-              final checked = domNode.attributes["type"];
-              if (checked != null && checked == "checkbox") {
-                checkbox = true;
-
-                alreadyChecked = domNode.attributes.keys.contains("checked");
-              }
-            }
-            result.addAll(
-              await _parseSpecialElements(
-                domNode,
-                type: BuiltInAttributeKey.bulletedList,
-              ),
-            );
-          }
-
-          /// Handle special elements (e.g., headings, lists, images)
+          delta.add(TextSpan(text: "${domNode.text}", style: attributes.$2));
         }
       } else if (domNode is dom.Text) {
+        delta.add(TextSpan(text: "${domNode.text}"));
+/*
         if (delta.isNotEmpty && domNode.text.trim().isNotEmpty) {
           final newlist = List<TextSpan>.from(delta);
           result.add((SizedBox(
@@ -139,6 +96,7 @@ class WidgetsHTMLDecoder {
 
         result.add(Text(domNode.text,
             style: TextStyle(font: font, fontFallback: fontFallback)));
+*/
 
         /// Process text nodes and add them to delta
       } else {
@@ -550,24 +508,12 @@ class WidgetsHTMLDecoder {
     final src = element.attributes["src"];
     try {
       if (src != null) {
-        if (src.startsWith("data:image/")) {
-          // To handle a case if someone added a space after base64 string
-          final List<String> components = src.split(",");
-
-          if (components.length > 1) {
-            var base64Encoded = components.last;
-            Uint8List listData = base64Decode(base64Encoded);
-            return Image(MemoryImage(listData),
-                alignment: customStyles.imageAlignment);
-          }
-          return Text("");
-        }
-
         final netImage = await _saveImage(src);
         return Image(MemoryImage(netImage),
             alignment: customStyles.imageAlignment);
+      } else {
+        return Text("");
       }
-      return Text("");
     } catch (e) {
       return Text("");
     }
@@ -701,12 +647,17 @@ class WidgetsHTMLDecoder {
     }
 
     ///apply background color on text
-    final backgroundColorStr = cssMap["background-color"];
+    var backgroundColorStr = cssMap["background-color"];
+    if (backgroundColorStr != null) {
+      backgroundColorStr = backgroundColorStr!.substring(3);
+    }
+
     final backgroundColor = backgroundColorStr == null
         ? null
-        : ColorExtension.tryFromRgbaString(backgroundColorStr);
+        : PdfColor.fromHex(backgroundColorStr);
+
     if (backgroundColor != null) {
-      style = style.copyWith(color: backgroundColor);
+      style = style.copyWith(background: BoxDecoration(color: backgroundColor));
     }
 
     ///apply background color on text
