@@ -77,26 +77,11 @@ class WidgetsHTMLDecoder {
 
           textAlign = attributes.$1;
 
-          delta.add(TextSpan(text: "${domNode.text}", style: attributes.$2));
+          delta.add(TextSpan(
+              text: "${domNode.text.trimRight()}", style: attributes.$2));
         }
       } else if (domNode is dom.Text) {
-        delta.add(TextSpan(text: "${domNode.text}"));
-/*
-        if (delta.isNotEmpty && domNode.text.trim().isNotEmpty) {
-          final newlist = List<TextSpan>.from(delta);
-          result.add((SizedBox(
-              width: double.infinity,
-              child: RichText(
-                  textAlign: textAlign, text: TextSpan(children: newlist)))));
-
-          textAlign = null;
-
-          delta.clear();
-        }
-
-        result.add(Text(domNode.text,
-            style: TextStyle(font: font, fontFallback: fontFallback)));
-*/
+        delta.add(TextSpan(text: "${domNode.text.trimRight()}"));
 
         /// Process text nodes and add them to delta
       } else {
